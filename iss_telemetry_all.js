@@ -1,4 +1,4 @@
-function alert(message)
+
 {
 
 }
@@ -12,8 +12,8 @@ let transporter = nodemailer.createTransport({
     secure: false,
     port: 25,
     auth: {
-      user: '',  //enter email address
-      pass: ''   //enter password
+      user: #####
+      pass: #####
     },
     tls: {
       rejectUnauthorized: false
@@ -78,9 +78,20 @@ lsClient.subscribe(sub);
 lsClient.subscribe(timeSub);
 
 var AOS;
-var messageSent = false;
+var oldAOS = 3;
+var stationtext = "n/a";
+var leak1_messageSent = false;
+var leak2_messageSent = false;
+var leak3_messageSent = false;
 var pressurePSI = 0.00;
-//fs.writeFileSync("./AOS.txt", "AOS ");
+var GMT = 0;
+var hours = 0.00;
+var mins = 0.00;
+var timestamp = "";
+
+var sam_email = '"Sam" <#@aol.com'
+var sam_text = '#####@vtext.com'
+var mitch_text = '#####@vtext.com'
 
 lsClient.connect();
 
@@ -96,62 +107,263 @@ sub.addListener(
   },
   onItemUpdate: function(update) 
   {
-	//console.log(update.getItemName())
 	fs.appendFileSync(update.getItemName()+".txt", update.getValue("TimeStamp") + " " + update.getValue("Value") + " " + "\n");
 	
 	if (update.getItemName() === "USLAB000058")
 	{
+	    GMT = Math.floor(update.getValue("TimeStamp") / 24.0);
+	    hours = Math.floor(((update.getValue("TimeStamp") / 24.0) - GMT) * 24.0);
+	    mins = Math.round((((((update.getValue("TimeStamp") / 24.0) - GMT) * 24.0) - hours) * 60.0) * 100.0) / 100.0;
+	    timestamp = GMT + ":" + hours + ":" + mins;
     	    console.log("Updated Cabin Pressure");
-	    if (update.getValue("Value") < 740)
+	    if (update.getValue("Value") < 739 && GMT > 0)
 	    {
-    	        console.log("ISS Leak Detected " + update.getValue("Value") + "mmHg at: " + update.getValue("TimeStamp"));
-		if (messageSent === false)
+    	        
+		console.log("ISS Leak Detected " + update.getValue("Value") + "mmHg at: " + update.getValue("TimeStamp"));
+		if (leak1_messageSent === false)
 		{
 	            pressurePSI = update.getValue("Value") * 0.019336;
-
     	            console.log("Sending Message");
-		    let Message1 = {
-		        from: '"Sam" <########@aol.com', //replace with email
-		        to: '#########@vtext.com', //replace with phone numbers
-		        subject: 'ISS Leak Alert!',
-		        text: 'Possible Leak Detected - ISS Cabin Pressure is ' + pressurePSI + ' PSI at ' + update.getValue("TimeStamp") 
+		    //Send Text to Sam
+		    let LeakMessage_Sam = {
+		        from: sam_email,
+		        to: sam_text,
+		        subject: 'ISS Pressure Alert',
+		        text: 'Possible Low Pressure Alert - ISS Cabin Pressure is below typical min pressure, currently: ' + (Math.round(pressurePSI * 100) / 100) + ' PSI at GMT ' + timestamp + " (threshold is 14.3 PSI)" 
 		    };
-	     	    transporter.sendMail(Message1, (error, info) => {
+	     	    transporter.sendMail(LeakMessage_Sam, (error, info) => {
 		        if(error) {
 		            return console.log(error);
 			}
-			console.log("Message Sent");
+			console.log("Message to Sam Sent");
 			console.log(info);
 		    });
-		    messageSent = true
+		    //Send Text to Mitch
+		    let LeakMessage_Mitch = {
+		        from: sam_email,
+		        to: mitch_text,
+		        subject: 'ISS Pressure Alert',
+		        text: 'Possible Low Pressure Alert - ISS Cabin Pressure is below typical min pressure, currently: ' + (Math.round(pressurePSI * 100) / 100) + ' PSI at GMT ' + timestamp + " (threshold is 14.3 PSI)" 
+		    };
+	     	    transporter.sendMail(LeakMessage_Mitch, (error, info) => {
+		        if(error) {
+		            return console.log(error);
+			}
+			console.log("Message to Mitch Sent");
+			console.log(info);
+		    });
+		    leak1_messageSent = true
 		}
 		else
 	        {
     	            console.log("Leak condition exists, but message has already been dispatched");
 		}
 	    }
-	    else
+	    if (update.getValue("Value") < 724 && GMT > 0)
 	    {
-                if (messageSent === true)
-	        {
-    	            console.log("Leak condition has been resolved");
-		    let Message2 = {
-		        from: '"Sam" <########@aol.com', //replace with email
-		        to: '#########@vtext.com', //replace with phone numbers
-		        subject: 'ISS Leak Resolved',
-		        text: 'ISS Cabin Pressure is above the 14.3 PSI threshold at ' + update.getValue("TimeStamp")
+    	        console.log("ISS Leak Detected " + update.getValue("Value") + "mmHg at: " + update.getValue("TimeStamp"));
+		if (leak2_messageSent === false)
+		{
+	            pressurePSI = update.getValue("Value") * 0.019336;
+		    GMT = Math.floor(update.getValue("TimeStamp") / 24.0);
+		    hours = Math.floor(((update.getValue("TimeStamp") / 24.0) - GMT) * 24.0);
+                    mins = Math.round((((((update.getValue("TimeStamp") / 24.0) - GMT) * 24.0) - hours) * 60.0) * 100.0) / 100.0;
+                    timestamp = GMT + ":" + hours + ":" + mins;
+    	            console.log("Sending Message");
+		    //Send Text to Sam
+		    let LeakMessage2_Sam = {
+		        from: sam_email,
+		        to: sam_text,
+		        subject: 'ISS Low Pressure Warning',
+		        text: 'Low Pressure Alert - ISS Cabin Pressure is below nominal min pressure, currently: ' + (Math.round(pressurePSI * 100) / 100) + ' PSI at GMT ' + timestamp + " ( threshold is 14.0 PSI)" 
 		    };
-	     	    transporter.sendMail(Message2, (error, info) => {
+	     	    transporter.sendMail(LeakMessage2_Sam, (error, info) => {
 		        if(error) {
 		            return console.log(error);
+			}
+			console.log("Message to Sam Sent");
+			console.log(info);
+		    });
+		    //Send Text to Mitch
+		    let LeakMessage2_Mitch = {
+		        from: sam_email,
+		        to: mitch_text,
+		        subject: 'ISS Low Pressure Warning',
+		        text: 'Low Pressure Alert - ISS Cabin Pressure is below nominal min pressure, currently: ' + (Math.round(pressurePSI * 100) / 100) + ' PSI at GMT ' + timestamp + " ( threshold is 14.0 PSI)" 
+		    };
+	     	    transporter.sendMail(LeakMessage2_Mitch, (error, info) => {
+		        if(error) {
+		            return console.log(error);
+			}
+			console.log("Message to Mitch Sent");
+			console.log(info);
+		    });
+		    leak2_messageSent = true
+		}
+		else
+	        {
+    	            console.log("Leak condition exists, but message has already been dispatched");
+		}
+	    }
+	    if (update.getValue("Value") < 500 && GMT > 0)
+	    {
+    	        console.log("ISS Leak Detected " + update.getValue("Value") + "mmHg at: " + update.getValue("TimeStamp"));
+		if (leak3_messageSent === false)
+		{
+	            pressurePSI = update.getValue("Value") * 0.019336;
+		    GMT = Math.floor(update.getValue("TimeStamp") / 24.0);
+		    hours = Math.floor(((update.getValue("TimeStamp") / 24.0) - GMT) * 24.0);
+                    mins = Math.round((((((update.getValue("TimeStamp") / 24.0) - GMT) * 24.0) - hours) * 60.0) * 100.0) / 100.0;
+                    timestamp = GMT + ":" + hours + ":" + mins;
+    	            console.log("Sending Message");
+		    let LeakMessage3_Sam = {
+		        from: sam_email,
+		        to: sam_text,
+		        subject: 'ISS Extreme Low Pressure Warning',
+		        text: 'Low Pressure Alert - The ISS Cabin Pressure has reached evacuation level, currently: ' + (Math.round(pressurePSI * 100) / 100) + ' PSI at GMT ' + timestamp + " ( threshold is 9.5 PSI)" 
+		    };
+	     	    transporter.sendMail(LeakMessage3_Sam, (error, info) => {
+		        if(error) {
+		            return console.log(error);
+			}
+			console.log("Message to Sam Sent");
+			console.log(info);
+		    });
+		    //Send Text to Mitch
+		    let LeakMessage3_Mitch = {
+		        from: sam_email,
+		        to: mitch_text,
+		        subject: 'ISS Extreme Low Pressure Warning',
+		        text: 'Low Pressure Alert - The ISS Cabin Pressure has reached evacuation level, currently: ' + (Math.round(pressurePSI * 100) / 100) + ' PSI at GMT ' + timestamp + " ( threshold is 9.5 PSI)" 
+		    };
+	     	    transporter.sendMail(LeakMessage3_Mitch, (error, info) => {
+		        if(error) {
+		            return console.log(error);
+			}
+			console.log("Message to Mitch Sent");
+			console.log(info);
+		    });
+		    leak3_messageSent = true
+		}
+		else
+	        {
+    	            console.log("Leak condition exists, but message has already been dispatched");
+		}
+	    }
+	    if (update.getValue("Value") > 746 && GMT > 0)
+	    {
+                if (leak1_messageSent === true)
+	        {
+	            pressurePSI = update.getValue("Value") * 0.019336;
+		    GMT = Math.floor(update.getValue("TimeStamp") / 24.0);
+		    hours = Math.floor(((update.getValue("TimeStamp") / 24.0) - GMT) * 24.0);
+                    mins = Math.round((((((update.getValue("TimeStamp") / 24.0) - GMT) * 24.0) - hours) * 60.0) * 100.0) / 100.0;
+                    timestamp = GMT + ":" + hours + ":" + mins;
+    	            console.log("Leak condition has been resolved");
+		    //Send Text to Sam
+		    let EndLeakMessage_Sam = {
+		        from: sam_email,
+		        to: sam_text,
+		        subject: 'ISS Pressure Normal',
+		        text: 'ISS Cabin Pressure has returned to nominal value of ' + (Math.round(pressurePSI * 100) / 100) + ' at ' + timestamp
+		    };
+	     	    transporter.sendMail(EndLeakMessage_Sam, (error, info) => {
+		        if(error) {
+		            return console.log(error);
+			}
+			console.log("Message to Sam Sent");
+			console.log(info);
+		    });
+		    //Send Text to Mitch
+		    let EndLeakMessage_Mitch = {
+		        from: sam_email,
+		        to: mitch_text,
+		        subject: 'ISS Pressure Normal',
+		        text: 'ISS Cabin Pressure has returned to nominal value of ' + (Math.round(pressurePSI * 100) / 100) + ' at ' + timestamp
+		    };
+	     	    transporter.sendMail(EndLeakMessage_Mitch, (error, info) => {
+		        if(error) {
+		            return console.log(error);
+			}
+			console.log("Message to Mitch Sent");
+			console.log(info);
+		    });
+		    leak1_messageSent = false
+		    leak2_messageSent = false
+		    leak3_messageSent = false
+		}
+            }    
+	}
+	if (update.getItemName() === "RUSSEG000001")
+	{
+    	    console.log("Updated Station Mode");
+	    switch(update.getValue("Value")){
+	        case "1":
+	            stationtext = "Crew Rescue Mode"
+		    console.log("Sending Message for Rescue Mode");
+		    let RescueMessage_Sam = {from: sam_email,to: sam_text,subject: 'ISS Crew Rescue Mode',text: "ISS has entered Crew Rescue Mode"};
+		    transporter.sendMail(RescueMessage_Sam, (error, info) => {
+			if(error) {
+			    return console.log(error);
 			}
 			console.log("Message Sent");
 			console.log(info);
 		    });
-		    messageSent = false
+		    let RescueMessage_Mitch = {from: sam_email,to: mitch_text,subject: 'ISS Crew Rescue Mode',text: "ISS has entered Crew Rescue Mode"};
+		    transporter.sendMail(RescueMessage_Mitch, (error, info) => {
+			if(error) {
+			    return console.log(error);
+			}
+			console.log("Message Sent");
+			console.log(info);
+		    });
+	            break;
+	        case "2":
+	            stationtext = "Survival Mode"
+		    console.log("Sending Message for Survival Mode");
+		    let SurvivalMessage_Sam = {from: sam_email,to: sam_text,subject: 'ISS Survival Mode',text: "ISS has entered Survival Mode"};
+		    transporter.sendMail(SurvivalMessage_Sam, (error, info) => {
+			if(error) {
+			    return console.log(error);
+			}
+			console.log("Message Sent");
+			console.log(info);
+		    });
+		    let SurvivalMessage_Message = {from: sam_email,to: mitch_text,subject: 'ISS Survival Mode',text: "ISS has entered Survival Mode"};
+		    transporter.sendMail(SurvivalMessage_Mitch, (error, info) => {
+			if(error) {
+			    return console.log(error);
+			}
+			console.log("Message Sent");
+			console.log(info);
+		    });
+	            break;
+	        case "3":
+	            stationtext = "Reboost"
+	            break;
+	        case "4":
+	            stationtext = "Proximity Operations"
+	            break;
+	        case "5":
+	            stationtext = "External Operations"
+	            break;
+	        case "6":
+	            stationtext = "Microgravity Mode"
+	            break;
+	        case "7":
+	            stationtext = "Standard Mode"
+	            break;
+	    }
+	    console.log("Sending Message for Mode");
+	    let ModeMessage_Sam = {from: '"Sam" <srt252@aol.com',to: '7135574846@vtext.com',subject: 'ISS Mode Change',text: stationtext};
+	    transporter.sendMail(ModeMessage_Sam, (error, info) => {
+		if(error) {
+		    return console.log(error);
 		}
-            }    
-	}
+		console.log("Message Sent");
+		console.log(info);
+	    });
+        }	
   }
 });
 
@@ -166,7 +378,12 @@ timeSub.addListener({
     else 
     {
 	AOSnum = 0;
+    }   
+    if (oldAOS != AOSnum)
+    {
+	console.log("AOS write");
+        fs.appendFileSync("AOS.txt", "AOS " + update.getValue("TimeStamp") + " " + AOSnum + "\n");
+	oldAOS = AOSnum;
     }
-    fs.appendFileSync("AOS.txt", "AOS " + update.getValue("TimeStamp") + " " + AOSnum + "\n");
   }
 });
